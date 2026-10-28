@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Your Personality Profile</title>
+<script>
+/* ====== Edit CONFIG to change the reading students see ====== */
+const CONFIG = {
+  // The one reading EVERY sign gets. Edit freely.
+  reading: [
+    "You care a lot about what the people close to you think, even when you act like you don't.",
+    "You have talents you haven't fully tapped yet.",
+    "With the right people you can be the life of the room, but you also need time alone to recharge.",
+    "You come across as more put-together than you feel, and you sometimes second-guess big decisions.",
+    "You get restless when life feels too routine, and you're at your best when you're working toward something that matters to you.",
+    "You're loyal to your people, but it takes a while to earn your full trust."
+  ],
+  // Paste your Google Apps Script web app URL here (it ends in /exec).
+  // Leave it empty to collect nothing.
+  scriptURL: ""
+};
+</script>
+<style>
+  :root { --ink:#1d1b2f; --muted:#6b6880; --bg:#f6f4fb; --card:#ffffff; --accent:#5b3fd1; --accent2:#e9e4ff; --line:#e3e0ee; }
+  * { box-sizing:border-box; }
+  html { background:var(--bg); }
+  body { margin:0; font-family:-apple-system, BlinkMacSystemFont, "Helvetica Neue", Helvetica, Arial, sans-serif; background:var(--bg); color:var(--ink); line-height:1.5; }
+  main { max-width:640px; margin:0 auto; padding:24px 16px 48px; }
+  h1 { font-size:1.6rem; margin:8px 0 4px; letter-spacing:-0.01em; }
+  h2 { font-size:1.25rem; margin:0 0 12px; }
+  .sub { color:var(--muted); margin:0 0 20px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:16px; padding:20px; margin-bottom:16px; box-shadow:0 1px 2px rgba(0,0,0,.03); }
+  .step { font-size:.8rem; font-weight:600; color:var(--accent); text-transform:uppercase; letter-spacing:.06em; margin-bottom:6px; }
+  .signs { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; }
+  .sign { border:1px solid var(--line); background:#fff; border-radius:12px; padding:12px 6px; text-align:center; cursor:pointer; font:inherit; color:inherit; }
+  .sign .g { font-size:1.6rem; display:block; line-height:1.2; }
+  .sign .n { font-weight:600; display:block; }
+  .sign .d { font-size:.72rem; color:var(--muted); display:block; }
+  .sign:hover, .sign:focus-visible { border-color:var(--accent); outline:none; background:var(--accent2); }
+  .q { padding:14px 0; border-top:1px solid var(--line); }
+  .q:first-of-type { border-top:none; padding-top:0; }
+  .q p { margin:0 0 8px; font-weight:500; }
+  .scale { display:grid; grid-template-columns:repeat(5,1fr); gap:6px; }
+  .scale label { display:block; }
+  .scale input { position:absolute; opacity:0; pointer-events:none; }
+  .scale span { display:block; text-align:center; border:1px solid var(--line); border-radius:10px; padding:8px 2px; font-size:.78rem; cursor:pointer; background:#fff; }
+  .scale input:checked + span { background:var(--accent); color:#fff; border-color:var(--accent); }
+  .scale input:focus-visible + span { outline:2px solid var(--accent); outline-offset:2px; }
+  button.primary { width:100%; border:0; border-radius:12px; padding:14px; font:inherit; font-weight:600; background:var(--accent); color:#fff; cursor:pointer; margin-top:8px; }
+  button.primary:disabled { opacity:.4; cursor:not-allowed; }
+  .hint { color:var(--muted); font-size:.85rem; margin-top:8px; text-align:center; }
+  .spin { width:44px; height:44px; border-radius:50%; border:4px solid var(--accent2); border-top-color:var(--accent); animation:s 0.9s linear infinite; margin:24px auto 12px; }
+  @keyframes s { to { transform:rotate(360deg); } }
+  .meta { display:flex; flex-wrap:wrap; gap:8px; margin:0 0 14px; }
+  .pill { background:var(--accent2); color:var(--accent); border-radius:999px; padding:4px 12px; font-size:.8rem; font-weight:600; }
+  .reading p { margin:0 0 10px; }
+  .big { font-size:3rem; font-weight:700; text-align:center; color:var(--accent); margin:8px 0; }
+  .hidden { display:none; }
+  .reveal-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(260px,1fr)); gap:16px; }
+  .reveal main { max-width:1200px; }
+  .reveal .reading p { font-size:.95rem; }
+  .results { display:grid; grid-template-columns:minmax(260px,1fr) 2fr; gap:16px; }
+  @media (max-width:700px){ .results { grid-template-columns:1fr; } }
+  .label { color:var(--muted); font-size:.9rem; font-weight:600; text-transform:uppercase; letter-spacing:.06em; }
+  .mean { font-size:6rem; font-weight:800; color:var(--accent); line-height:1.1; margin:8px 0; }
+  .bar { display:grid; grid-template-columns:110px 1fr 40px; align-items:center; gap:12px; margin:12px 0; font-size:1.05rem; }
+  .bt { background:var(--accent2); border-radius:8px; height:34px; overflow:hidden; display:block; }
+  .bf { background:var(--accent); height:100%; display:block; transition:width .5s; }
+  .bc { font-weight:700; text-align:right; }
+</style>
+</head>
+<body>
+<main id="app"></main>
+
+<script>
+const SIGNS = [
+  ["Aries","♈","Mar 21 – Apr 19","Fire","Mars"],
+  ["Taurus","♉","Apr 20 – May 20","Earth","Venus"],
+  ["Gemini","♊","May 21 – Jun 20","Air","Mercury"],
+  ["Cancer","♋","Jun 21 – Jul 22","Water","the Moon"],
+  ["Leo","♌","Jul 23 – Aug 22","Fire","the Sun"],
+  ["Virgo","♍","Aug 23 – Sep 22","Earth","Mercury"],
+  ["Libra","♎","Sep 23 – Oct 22","Air","Venus"],
+  ["Scorpio","♏","Oct 23 – Nov 21","Water","Pluto"],
+  ["Sagittarius","♐","Nov 22 – Dec 21","Fire","Jupiter"],
+  ["Capricorn","♑","Dec 22 – Jan 19","Earth","Saturn"],
+  ["Aquarius","♒","Jan 20 – Feb 18","Air","Uranus"],
+  ["Pisces","♓","Feb 19 – Mar 20","Water","Neptune"]
+];
+const ITEMS = [
+  "I enjoy meeting new people.",
+  "I notice small details that other people miss.",
+  "I often worry about things that might go wrong.",
+  "I like trying new foods, places, or ideas.",
+  "I follow through on my plans.",
+  "I need quiet time after a busy day.",
+  "I go out of my way to help others.",
+  "My mood can change quickly.",
+  "I prefer to plan ahead rather than be spontaneous.",
+  "I get bored when things stay the same for too long."
+];
+const SCALE = ["Strongly disagree","Disagree","Neutral","Agree","Strongly agree"];
+const app = document.getElementById("app");
+let sign = null;
+
+function esc(s){ return s.replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
+function readingHTML(){ return CONFIG.reading.map(p => "<p>" + esc(p) + "</p>").join(""); }
+function profileCard(s){
+  return `<div class="card"><h2>Your ${s[0]} Profile ${s[1]}</h2>
+    <div class="meta"><span class="pill">Element: ${s[3]}</span><span class="pill">Ruled by ${s[4]}</span></div>
+    <div class="reading">${readingHTML()}</div></div>`;
+}
+
+function screenSign(){
+  app.innerHTML = `<div class="step">Step 1 of 3</div>
+    <h1>Your Personality Profile</h1>
+    <p class="sub">Select your zodiac sign to begin.</p>
+    <div class="card"><div class="signs">${SIGNS.map((s,i)=>
+      `<button class="sign" data-i="${i}"><span class="g" aria-hidden="true">${s[1]}</span><span class="n">${s[0]}</span><span class="d">${s[2]}</span></button>`).join("")}</div></div>`;
+  app.querySelectorAll(".sign").forEach(b => b.onclick = () => { sign = SIGNS[+b.dataset.i]; screenItems(); });
+}
+
+function screenItems(){
+  app.innerHTML = `<div class="step">Step 2 of 3</div>
+    <h1>${sign[1]} A few questions about you</h1>
+    <p class="sub">Answer honestly. Your answers help personalize your ${sign[0]} profile.</p>
+    <form class="card" id="f">${ITEMS.map((t,i)=>`<div class="q"><p>${i+1}. ${esc(t)}</p><div class="scale">${
+      SCALE.map((l,j)=>`<label><input type="radio" name="q${i}" value="${j+1}"><span>${l}</span></label>`).join("")}</div></div>`).join("")}
+      <button class="primary" id="go" type="submit" disabled>See my profile</button>
+      <div class="hint" id="left">${ITEMS.length} questions left</div></form>`;
+  window.scrollTo(0,0);
+  const f = document.getElementById("f"), go = document.getElementById("go"), left = document.getElementById("left");
+  f.onchange = () => { const n = ITEMS.length - new Set([...f.querySelectorAll("input:checked")].map(x=>x.name)).size;
+    go.disabled = n > 0; left.textContent = n ? n + (n===1?" question left":" questions left") : "All done!"; };
+  f.onsubmit = e => { e.preventDefault(); screenLoading(); };
+}
+
+function screenLoading(){
+  app.innerHTML = `<div class="card" style="text-align:center"><div class="spin"></div><p>Building your ${sign[0]} profile…</p></div>`;
+  window.scrollTo(0,0);
+  setTimeout(screenProfile, 2200);
+}
+
+function screenProfile(){
+  app.innerHTML = `<div class="step">Step 3 of 3</div><h1>Here's your profile</h1>
+    <p class="sub">Read it carefully. Keep your screen to yourself for now!</p>
+    ${profileCard(sign)}
+    <div class="card"><h2>How well does this describe you?</h2>
+      <div class="scale" id="r">${["1<br>Not at all","2","3","4","5<br>Perfectly"].map((l,j)=>
+        `<label><input type="radio" name="rate" value="${j+1}"><span>${l}</span></label>`).join("")}</div>
+      <button class="primary" id="send" disabled>Submit my rating</button></div>`;
+  window.scrollTo(0,0);
+  const send = document.getElementById("send");
+  document.getElementById("r").onchange = () => send.disabled = false;
+  send.onclick = () => { send.disabled = true; const v = document.querySelector("input[name=rate]:checked").value; submitRating(v); screenDone(v); };
+}
+
+function submitRating(v){
+  if (!CONFIG.scriptURL) return;
+  fetch(CONFIG.scriptURL, { method:"POST", mode:"no-cors", headers:{"Content-Type":"text/plain"},
+    body: JSON.stringify({ sign: sign[0], rating: Number(v) }) }).catch(()=>{});
+}
+
+function screenResults(){
+  document.body.classList.add("reveal");
+  app.innerHTML = `<h1>How accurate was your profile?</h1>
+    <p class="sub">Live class results. Updates every few seconds.</p>
+    <div class="results">
+      <div class="card" style="text-align:center"><div class="label">Class average</div>
+        <div class="mean" id="mean">–</div><div class="label">out of 5</div>
+        <div class="sub" id="n" style="margin:12px 0 0">Waiting for responses…</div></div>
+      <div class="card"><div class="label" style="margin-bottom:12px">Ratings</div><div id="bars"></div></div>
+    </div>`;
+  const names = ["1 Not at all","2","3","4","5 Perfectly"];
+  async function tick(){
+    if (!CONFIG.scriptURL) { document.getElementById("n").textContent = "Add your scriptURL in CONFIG to see live results."; return; }
+    try {
+      const r = await fetch(CONFIG.scriptURL + "?t=" + Date.now()); const d = await r.json();
+      document.getElementById("mean").textContent = d.n ? d.mean.toFixed(1) : "–";
+      document.getElementById("n").textContent = d.n + (d.n === 1 ? " response" : " responses");
+      const max = Math.max(1, ...d.counts);
+      document.getElementById("bars").innerHTML = d.counts.map((c,i)=>
+        `<div class="bar"><span class="bl">${names[i]}</span><span class="bt"><span class="bf" style="width:${c/max*100}%"></span></span><span class="bc">${c}</span></div>`).join("");
+    } catch(e) { document.getElementById("n").textContent = "Reconnecting…"; }
+  }
+  tick(); setInterval(tick, 4000);
+}
+
+function screenDone(v){
+  app.innerHTML = `<h1>Thanks!</h1><div class="card" style="text-align:center">
+    <p>You rated your ${sign[0]} profile</p><div class="big">${v} / 5</div>
+    <p class="sub" style="margin:0">Remember your number. Wait for your instructor before comparing with anyone.</p></div>`;
+  window.scrollTo(0,0);
+}
+
+function screenReveal(){
+  document.body.classList.add("reveal");
+  const pick = [SIGNS[7], SIGNS[4], SIGNS[11]];
+  app.innerHTML = `<h1>Every sign got the same profile</h1>
+    <p class="sub">Scorpio, Leo, Pisces, and all the others read the exact same paragraph.</p>
+    <div class="reveal-grid">${pick.map(profileCard).join("")}</div>`;
+}
+
+const QS = new URLSearchParams(location.search);
+if (QS.has("results")) screenResults(); else if (QS.has("reveal")) screenReveal(); else screenSign();
+</script>
+</body>
+</html>
